@@ -23,11 +23,13 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Info
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import Link from 'next/link'
-import { ThemeToggle } from "@/components/theme-toggle"
-
 
 // Types
 interface ConversationData {
@@ -51,6 +53,19 @@ interface DashboardStats {
 interface PeakHour {
   hour: string;
   value: number;
+}
+
+interface Notification {
+  id: string;
+  type: 'info' | 'warning' | 'success' | 'error';
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 // Mock API functions
@@ -95,6 +110,60 @@ const mockAPI = {
       day,
       messages: Math.floor(Math.random() * 100) + 100
     }));
+  },
+
+  getNotifications: async (): Promise<Notification[]> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const notificationTypes: Notification['type'][] = ['info', 'warning', 'success', 'error'];
+    const notificationTemplates = [
+      {
+        title: "New Message Received",
+        message: "You have a new message from customer #${id}",
+        type: 'info' as Notification['type']
+      },
+      {
+        title: "High Response Time",
+        message: "Average response time is above 5 minutes",
+        type: 'warning' as Notification['type']
+      },
+      {
+        title: "Conversation Resolved",
+        message: "Conversation #${id} has been successfully resolved",
+        type: 'success' as Notification['type']
+      },
+      {
+        title: "System Alert",
+        message: "Unusual activity detected in the messaging system",
+        type: 'error' as Notification['type']
+      },
+      {
+        title: "Performance Update",
+        message: "Satisfaction rate increased by ${percent}% this week",
+        type: 'success' as Notification['type']
+      }
+    ];
+
+    const count = Math.floor(Math.random() * 3) + 1; // 1-3 new notifications
+    const newNotifications: Notification[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const template = notificationTemplates[Math.floor(Math.random() * notificationTemplates.length)];
+      const message = template.message
+        .replace('${id}', Math.floor(Math.random() * 1000).toString())
+        .replace('${percent}', (Math.floor(Math.random() * 20) + 5).toString());
+
+      newNotifications.push({
+        id: `notif-${Date.now()}-${i}`,
+        type: template.type,
+        title: template.title,
+        message,
+        timestamp: new Date(),
+        read: false
+      });
+    }
+
+    return newNotifications;
   }
 };
 
@@ -105,11 +174,13 @@ export default function DashboardPage() {
   const [conversationData, setConversationData] = useState<ConversationData[]>([]);
   const [peakHours, setPeakHours] = useState<PeakHour[]>([]);
   const [messageTrend, setMessageTrend] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<string>("week");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Fetch all data
   const fetchData = async () => {
@@ -119,18 +190,23 @@ export default function DashboardPage() {
         statsData,
         conversationData,
         peakHoursData,
-        messageTrendData
+        messageTrendData,
+        newNotifications
       ] = await Promise.all([
         mockAPI.getDashboardStats(),
         mockAPI.getConversationData(),
         mockAPI.getPeakHours(),
-        mockAPI.getMessageTrend()
+        mockAPI.getMessageTrend(),
+        mockAPI.getNotifications()
       ]);
 
       setStats(statsData);
       setConversationData(conversationData);
       setPeakHours(peakHoursData);
       setMessageTrend(messageTrendData);
+      
+      // Add new notifications to existing ones
+      setNotifications(prev => [...newNotifications, ...prev]);
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -162,66 +238,91 @@ export default function DashboardPage() {
     setIsCollapsed(!isCollapsed);
   };
 
+  const toggleNotifications = () => {
+    setNotificationsOpen(!notificationsOpen);
+    // Mark all as read when opening notifications
+    if (!notificationsOpen) {
+      setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+    }
+  };
+
+  const markAsRead = (id: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, read: true } : notif
+      )
+    );
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const getNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="size-4 text-green-500" />;
+      case 'warning':
+        return <AlertCircle className="size-4 text-yellow-500" />;
+      case 'error':
+        return <AlertCircle className="size-4 text-red-500" />;
+      case 'info':
+      default:
+        return <Info className="size-4 text-blue-500" />;
+    }
+  };
+
+  const getNotificationColor = (type: Notification['type']) => {
+    switch (type) {
+      case 'success':
+        return 'border-l-green-500';
+      case 'warning':
+        return 'border-l-yellow-500';
+      case 'error':
+        return 'border-l-red-500';
+      case 'info':
+      default:
+        return 'border-l-blue-500';
+    }
+  };
+
+  const unreadCount = notifications.filter(notif => !notif.read).length;
+
   if (loading && !stats) {
     return (
       <div className="flex min-h-screen bg-background text-foreground">
         {/* Sidebar Skeleton */}
-        {/* Sidebar */}
-{sidebarOpen && (
-  <div className={`bg-card border-r border-border transition-all duration-300 ${
-    isCollapsed ? 'w-20' : 'w-64'
-  }`}>
-    <div className="p-4">
-      {/* Logo and Controls */}
-      <div className="flex items-center justify-between mb-8">
-        {!isCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 size-8 rounded-lg flex items-center justify-center">
-              <BarChart3 className="size-5 text-white" />
+        {sidebarOpen && (
+          <div className={`bg-card border-r border-border transition-all duration-300 ${
+            isCollapsed ? 'w-20' : 'w-64'
+          }`}>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-8">
+                {!isCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 size-8 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="size-5 text-white" />
+                    </div>
+                    <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                      Dashboard
+                    </span>
+                  </div>
+                )}
+                <button 
+                  onClick={toggleCollapse}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                  title={isCollapsed ? "Développer la sidebar" : "Réduire la sidebar"}
+                >
+                  {isCollapsed ? <ChevronRight className="size-6" /> : <ChevronLeft className="size-5" />}
+                </button>
+              </div>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Dashboard
-            </span>
           </div>
         )}
-        <div className="flex gap-1">
-          <button 
-            onClick={toggleCollapse}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-            title={isCollapsed ? "Développer la sidebar" : "Réduire la sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="size-6" /> : <ChevronLeft className="size-5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation with larger icons */}
-      <nav className="space-y-3">
-        {[
-          { icon: Home, label: "Tableau de bord", active: true, href: "/dashboard" },
-          { icon: Mail, label: "Messages", active: false, href: "#" },
-          { icon: Users, label: "Clients", active: false, href: "#"},
-          { icon: BarChart3, label: "Rapports", active: false, href: "#" },
-          { icon: Settings, label: "Paramètres", active: false, href: "/settings" }
-        ].map((item, index) => (
-          <Link 
-            key={index}
-            href={item.href} 
-            className={`flex items-center rounded-lg transition-all duration-200 ${
-              item.active 
-                ? 'bg-primary/10 text-primary border border-primary/20' 
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-            } ${isCollapsed ? 'justify-center p-4' : 'gap-3 px-3 py-2'}`}
-            title={isCollapsed ? item.label : ''}
-          >
-            <item.icon className={`${isCollapsed ? 'size-8' : 'size-5'}`} />
-            {!isCollapsed && <span>{item.label}</span>}
-          </Link>
-        ))}
-      </nav>
-    </div>
-  </div>
-)}
   
         {/* Main Content Skeleton */}
         <div className={`flex-1 p-6 ${sidebarOpen ? '' : 'w-full'}`}>
@@ -309,20 +410,24 @@ export default function DashboardPage() {
                     <BarChart3 className="size-5 text-white" />
                   </div>
                   <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                  Dashboard
+                    Dashboard
                   </span>
                 </div>
               )}
-              <div className="flex gap-1">
-
-              </div>
+              <button 
+                onClick={toggleCollapse}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                title={isCollapsed ? "Développer la sidebar" : "Réduire la sidebar"}
+              >
+                {isCollapsed ? <ChevronRight className="size-6" /> : <ChevronLeft className="size-5" />}
+              </button>
             </div>
 
             {/* Navigation with larger icons */}
             <nav className="space-y-3">
               {[
                 { icon: Home, label: "Tableau de bord", active: true, href: "/dashboard" },
-                { icon: Mail, label: "Messages", active: false, href: "#" },
+                { icon: Mail, label: "Messages", active: false, href: "/messages" },
                 { icon: Users, label: "Clients", active: false, href: "#"},
                 { icon: BarChart3, label: "Rapports", active: false, href: "#" },
                 { icon: Settings, label: "Paramètres", active: false, href: "/settings" }
@@ -417,10 +522,95 @@ export default function DashboardPage() {
             </div>
             
             {/* Notifications */}
-            <button className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
-              <Bell className="size-5" />
-              <span className="absolute -top-1 -right-1 size-3 bg-red-500 rounded-full border-2 border-background"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={toggleNotifications}
+                className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              >
+                <Bell className="size-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 size-4 bg-red-500 rounded-full border-2 border-background text-[10px] font-medium flex items-center justify-center text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications Dropdown */}
+              {notificationsOpen && (
+                <div className="absolute right-0 top-12 w-80 bg-card border border-border rounded-lg shadow-lg z-50">
+                  <div className="p-4 border-b border-border">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-semibold text-foreground">Notifications</h3>
+                      <div className="flex gap-2">
+                        {notifications.length > 0 && (
+                          <button 
+                            onClick={clearAllNotifications}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Clear all
+                          </button>
+                        )}
+                        <button 
+                          onClick={toggleNotifications}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">
+                        <Bell className="size-8 mx-auto mb-2 opacity-50" />
+                        <p>No notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-4 border-b border-border hover:bg-accent/50 transition-colors ${
+                            !notification.read ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                          } ${getNotificationColor(notification.type)} border-l-4`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2">
+                              {getNotificationIcon(notification.type)}
+                              <span className="font-medium text-sm text-foreground">
+                                {notification.title}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteNotification(notification.id)}
+                              className="p-1 hover:bg-accent rounded transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {notification.message}
+                          </p>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground">
+                              {notification.timestamp.toLocaleTimeString()}
+                            </span>
+                            {!notification.read && (
+                              <button
+                                onClick={() => markAsRead(notification.id)}
+                                className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                              >
+                                Mark as read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             
             {/* User Menu */}
             <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
@@ -432,7 +622,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-  
+
+        {/* Rest of the content remains the same */}
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-gradient-to-br from-card to-card/80 border-border hover:border-blue-500/50 transition-all duration-300">
@@ -450,7 +641,7 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-  
+
           <Card className="bg-gradient-to-br from-card to-card/80 border-border hover:border-green-500/50 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Open Conversations</CardTitle>
@@ -463,7 +654,7 @@ export default function DashboardPage() {
               <div className="text-xs text-muted-foreground mt-1">Real-time</div>
             </CardContent>
           </Card>
-  
+
           <Card className="bg-gradient-to-br from-card to-card/80 border-border hover:border-gray-500/50 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Closed Conversations</CardTitle>
@@ -476,7 +667,7 @@ export default function DashboardPage() {
               <div className="text-xs text-muted-foreground mt-1">This week</div>
             </CardContent>
           </Card>
-  
+
           <Card className="bg-gradient-to-br from-card to-card/80 border-border hover:border-orange-500/50 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Hidden Conversations</CardTitle>
@@ -490,7 +681,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-  
+
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daily Conversations */}
@@ -536,7 +727,7 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-  
+
           {/* Performance Metrics */}
           <Card className="bg-gradient-to-br from-card to-card/80 border-border">
             <CardHeader>
@@ -617,7 +808,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-  
+
         {/* Bottom Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Messages Trend */}
@@ -665,7 +856,7 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-  
+
           {/* Peak Hours */}
           <Card className="bg-gradient-to-br from-card to-card/80 border-border">
             <CardHeader>
@@ -710,7 +901,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-  
+
         {/* Messages Overview */}
         <Card className="bg-gradient-to-br from-card to-card/80 border-border">
           <CardHeader>

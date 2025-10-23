@@ -91,18 +91,18 @@ export function SignupForm({
   }
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props} onSubmit={handleSubmit}>
-      <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Créez votre compte</h1>
-          <p className="text-muted-foreground text-sm text-balance">
+    <form className={cn("flex flex-col gap-3 w-full max-w-[400px] mx-auto", className)} {...props} onSubmit={handleSubmit}>
+      <FieldGroup className="space-y-2">
+        <div className="flex flex-col items-center text-center mb-1">
+          <h1 className="text-2xl font-bold py-2">Créez votre compte</h1>
+          <p className="text-muted-foreground text-sm text-balance mt-0.5">
           Remplissez le formulaire ci-dessous pour créer votre compte
           </p>
         </div>
         
         {/* Name Field */}
         <Field>
-          <FieldLabel htmlFor="name">Nom complet</FieldLabel>
+          <FieldLabel htmlFor="name" className="mb-0.5">Nom complet</FieldLabel>
           <Input 
             id="name" 
             type="text" 
@@ -115,7 +115,7 @@ export function SignupForm({
 
         {/* Email Field */}
         <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email" className="mb-0.5">Email</FieldLabel>
           <Input 
             id="email" 
             type="email" 
@@ -125,7 +125,7 @@ export function SignupForm({
             onChange={(e) => handleChange("email", e.target.value)}
           />
           {errors.email && (
-            <FieldDescription className="text-destructive">
+            <FieldDescription className="text-destructive text-sm mt-0.5">
               {errors.email}
             </FieldDescription>
           )}
@@ -133,7 +133,7 @@ export function SignupForm({
 
         {/* Password Field */}
         <Field>
-          <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
+          <FieldLabel htmlFor="password" className="mb-0.5">Mot de passe</FieldLabel>
           <Input 
             id="password" 
             type="password" 
@@ -142,7 +142,7 @@ export function SignupForm({
             onChange={(e) => handleChange("password", e.target.value)}
           />
           {errors.password && (
-            <FieldDescription className="text-destructive">
+            <FieldDescription className="text-destructive text-sm mt-0.5">
               {errors.password}
             </FieldDescription>
           )}
@@ -150,7 +150,7 @@ export function SignupForm({
 
         {/* Confirm Password Field */}
         <Field>
-          <FieldLabel htmlFor="confirm-password">Confirmer le mot de passe</FieldLabel>
+          <FieldLabel htmlFor="confirm-password" className="mb-0.5">Confirmer le mot de passe</FieldLabel>
           <Input 
             id="confirm-password" 
             type="password" 
@@ -159,7 +159,7 @@ export function SignupForm({
             onChange={(e) => handleChange("confirmPassword", e.target.value)}
           />
           {errors.confirmPassword && (
-            <FieldDescription className="text-destructive">
+            <FieldDescription className="text-destructive text-sm mt-0.5">
               {errors.confirmPassword}
             </FieldDescription>
           )}
@@ -167,16 +167,16 @@ export function SignupForm({
 
         {/* Submit Button */}
         <Field>
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full mt-1">
           Créer le compte
           </Button>
         </Field>
 
         {/* Separator */}
-        <FieldSeparator>Ou continuer avec</FieldSeparator>
+        <FieldSeparator className="my-2">Ou continuer avec</FieldSeparator>
 
         {/* GitHub OAuth */}
-        <Field>
+        <Field className="space-y-2">
           <Button variant="outline" type="button" className="w-full">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 mr-2">
               <path
@@ -187,10 +187,10 @@ export function SignupForm({
             Sign up with GitHub
           </Button>
           <FieldDescription className="text-center">
-  Vous n'avez pas de compte ?{" "}
-  <a href="/signup" className="text-primary hover:underline">
-    S'inscrire
-  </a>
+            Vous avez déjà un compte ?{" "}
+            <a href="/login" className="text-primary hover:underline">
+              Se connecter
+            </a>
           </FieldDescription>
         </Field>
       </FieldGroup>
